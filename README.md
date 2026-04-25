@@ -1,6 +1,6 @@
 # Ridgewood Skill
 
-A Custom Skill for Claude that helps find authentic addresses (cafés, bars, restaurants, etc.) in any city, based on a "local and non-touristy" profile calibrated on neighborhoods like Ridgewood, Bushwick, and Jackson Heights in NYC.
+A Custom Skill for Claude that helps find authentic addresses (cafés, bars, restaurants, etc.) in any city, based on a "local and non-touristy" profile calibrated on neighborhoods like Ridgewood and Redhook in NYC.
 
 ## What it does
 
