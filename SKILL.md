@@ -276,13 +276,30 @@ Present neighborhoods grouped by category (Category 1 first, then Category 2). F
 
 ## Search Strategy — Venues
 
-### Primary source: Reddit API (via `reddit_search.py`)
-Reddit is the most reliable source because recommendations come from locals with no economic incentive. Use the script directly — do NOT fall back to web search for Reddit.
+Two tools, two roles. Never swap them.
+
+---
+
+### Phase 1 — DISCOVERY via Reddit API (`reddit_search.py`)
+
+Reddit is where locals recommend to locals — no economic incentive, no SEO. Use the script for all discovery. Do NOT use web search for this phase.
+
+**What Reddit answers:**
+- Which neighborhoods match the profile
+- Which specific venues are mentioned by locals
+- Why a venue is liked (vibe, clientele, atmosphere)
+- The "flight signal" — locals recommending X as an alternative to a more known neighbor
 
 **Script location:** `reddit_search.py` in the repo root. Requires `.env` with `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET`.
 
-**Run these calls for each confirmed neighborhood:**
+**Calls for neighborhood discovery:**
+```bash
+python reddit_search.py --query "[city] underrated neighborhoods locals" --subreddit [citysubreddit] --limit 15
+python reddit_search.py --query "[city] instead of [known neighborhood]" --limit 10
+python reddit_search.py --query "[city] up and coming neighborhood gentrification" --limit 15
+```
 
+**Calls for venue discovery (per confirmed neighborhood):**
 ```bash
 # Bars
 python reddit_search.py --query "[neighborhood] [city] bar locals" --subreddit [citysubreddit] --limit 10
@@ -293,11 +310,8 @@ python reddit_search.py --query "[neighborhood] [city] coffee café" --subreddit
 # Restaurants
 python reddit_search.py --query "[neighborhood] [city] restaurant local" --subreddit [citysubreddit] --limit 10
 
-# Cross-city (no subreddit restriction)
+# Broader cross-city
 python reddit_search.py --query "where locals eat [neighborhood] [city]" --limit 15
-
-# Flight signal (for neighborhood discovery)
-python reddit_search.py --query "[city] instead of [known neighborhood] locals" --limit 10
 ```
 
 **Also target city-specific subreddits:**
@@ -310,17 +324,43 @@ python reddit_search.py --query "[city] instead of [known neighborhood] locals" 
 - `date` within the last 2 years (already filtered by the script)
 - Ignore comments that are a bare venue name with no context
 
-### Secondary sources (if Reddit results < 5 relevant posts)
+---
+
+### Phase 2 — VALIDATION via `web_search` / `web_fetch`
+
+Once venues are identified from Reddit, validate each one before presenting it to the user. A venue that no longer exists or has closed is worse than no recommendation.
+
+**What web search/fetch answers:**
+- Exact address
+- Current opening hours
+- Whether the venue still exists (Google Maps, official site)
+- Website and Instagram
+
+**Run for each shortlisted venue:**
+```
+web_search: "[venue name] [city] adresse horaires"
+web_search: "[venue name] [city] site officiel OR instagram"
+web_fetch: Google Maps page or official website if found
+```
+
+**Validation rules:**
+- If a venue cannot be confirmed as still open → do not recommend it, flag it as unverifiable
+- If hours are only available from a source older than 1 year → note "hours unverified, check before going"
+- Instagram is a useful signal for "still active" — a dead account with no posts in 2+ years is a red flag
+
+---
+
+### Review volume — important rule
+Do NOT sort or prioritize venues by number of reviews. A venue with 200 authentic local reviews may outrank one with 2,000 tourist reviews. Volume is not a quality signal for this profile.
+
+### When Reddit results are insufficient
+Flag explicitly to the user: *"Reddit results for [neighborhood] in [city] are limited — do you have local knowledge or contacts who could supplement?"* Do not fill gaps with generic recommendations.
+
+### Fallback sources (if Reddit results < 5 relevant posts)
 - Independent local blogs, neighborhood guides
 - Eater [city], local food/culture press — filter out sponsored content
 - Time Out acceptable as last resort — ignore "top 10" lists, look for editorial pieces
 - **Never use**: TripAdvisor top lists, Yelp top picks, Google Maps "popular" sorting
-
-### Review volume — important rule
-Do NOT sort or prioritize venues by number of reviews. A venue with 200 authentic local reviews may be a better fit than one with 2,000 tourist reviews. Volume is not a quality signal for this profile.
-
-### When results are insufficient
-Flag explicitly to the user: *"Reddit results for [neighborhood] in [city] are limited — do you have local knowledge or contacts who could supplement?"* Do not fill gaps with generic recommendations.
 
 ---
 
