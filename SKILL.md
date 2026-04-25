@@ -122,24 +122,32 @@ The last query is the **flight signal** — locals recommending X as an alternat
 
 Prioritize posts with `score` > 20 and `top_comments` that describe a neighborhood's atmosphere or clientele. `date` filtering (last 2 years) is handled automatically by the script.
 
-**Layer 2 — Time Out "Coolest Neighborhoods" annual list**
+**Layer 2 — Time Out "Coolest Neighborhoods" annual list** → `web_search`
 This is the single most aligned cultural source for this profile. Time Out's methodology explicitly targets neighborhoods with community spirit, everyday vitality, and local character — not tourist centrality or luxury.
-- Search: `Time Out coolest neighborhoods world [current year] [city]`
-- Also check previous years (2023, 2024) — neighborhoods that appeared 2–4 years ago are often at peak emergence now
+```
+web_search: "Time Out coolest neighborhoods world [current year] [city]"
+web_search: "Time Out coolest neighborhoods [city] 2024"
+```
+- Neighborhoods that appeared 2–4 years ago are often at peak emergence now
 - Note: Time Out Brooklyn neighborhoods to watch (Flatbush 2024, Fort Greene 2023, Red Hook 2025) follow a pattern of authentic emerging areas year over year
 
-**Layer 3 — Hyper-local neighborhood press**
+**Layer 3 — Hyper-local neighborhood press** → `web_search` + `web_fetch`
 The existence of a neighborhood-specific publication is itself a strong signal of community identity. These outlets cover a neighborhood *from the inside* with no tourist audience.
-- Search: `"[neighborhood name]" local newspaper OR blog "[city]"`
+```
+web_search: "[neighborhood name] local newspaper OR blog [city]"
+web_fetch: the publication's homepage if found
+```
 - Examples of the type: Star-Revue (Red Hook), Bushwick Daily (Bushwick/Ridgewood)
 - Look for: articles describing the community, artisans, local businesses, residents — not "best restaurants in X" listicles
 
-**Layer 4 — Real estate & gentrification analyses (indicator only)**
+**Layer 4 — Real estate & gentrification analyses (indicator only)** → `web_search`
 Useful as a signal but NOT the primary ranking criterion. A neighborhood absent from StreetEasy may be exactly the right one.
-- StreetEasy annual "most searched neighborhoods" (US cities)
-- Curbed, Axios Local, local press "neighborhoods to watch"
+```
+web_search: "[city] neighborhoods to watch [year]"
+web_search: "[city] up and coming neighborhood [year]"
+```
+- Curbed, Axios Local, local press preferred
 - Prefer articles from 1–4 years ago — captures emergence before peak
-- Search: `"[city]" "neighborhoods to watch" OR "up and coming" [year]`
 
 **Layer 5 — Internal knowledge (last resort only)**
 If layers 1–4 yield insufficient results, Claude may draw on training knowledge — but must flag this explicitly: *"I'm supplementing with internal knowledge here as search results were limited — treat these suggestions as hypotheses to validate."*
@@ -328,7 +336,7 @@ python reddit_search.py --query "where locals eat [neighborhood] [city]" --limit
 
 ### Phase 2 — VALIDATION via `web_search` / `web_fetch`
 
-Once venues are identified from Reddit, validate each one before presenting it to the user. A venue that no longer exists or has closed is worse than no recommendation.
+Once venues are identified from Reddit, use web search to fill in the practical details before presenting to the user.
 
 **What web search/fetch answers:**
 - Exact address
@@ -344,9 +352,9 @@ web_fetch: Google Maps page or official website if found
 ```
 
 **Validation rules:**
-- If a venue cannot be confirmed as still open → do not recommend it, flag it as unverifiable
-- If hours are only available from a source older than 1 year → note "hours unverified, check before going"
-- Instagram is a useful signal for "still active" — a dead account with no posts in 2+ years is a red flag
+- If address or hours are found → include them in the output
+- If info is not available → recommend the venue anyway, note "adresse et horaires à vérifier" without disqualifying it
+- Instagram is a useful signal for "still active" — note a dead account as a caveat, not a disqualifier
 
 ---
 
