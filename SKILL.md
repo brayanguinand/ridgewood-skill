@@ -107,16 +107,20 @@ Neighborhoods with extreme cultural diversity and very low gentrification (e.g. 
 
 ### Search sequence (run in this order)
 
-**Layer 1 — Reddit (primary source)**
-Reddit is where locals recommend to locals — no economic incentive, no SEO. Run these searches:
-- `site:reddit.com "[city]" "where do locals live"`
-- `site:reddit.com "[city]" "underrated neighborhoods"`
-- `site:reddit.com "[city]" "up and coming neighborhood"`
-- `site:reddit.com "[city]" "gentrification" neighborhood`
-- `site:reddit.com r/[citysubreddit] "neighborhood" recommendations`
-- `reddit "[city]" "instead of [known neighborhood]"` — **the flight signal**: locals recommending X as an alternative to a more known neighbor is the strongest Category 1 indicator
+**Layer 1 — Reddit API (primary source)**
+Reddit is where locals recommend to locals — no economic incentive, no SEO. Use `reddit_search.py` directly.
 
-Prioritize: threads with most upvotes, comments dated within the last 2 years. Ignore generic responses without neighborhood-level description. Note: `site:reddit.com` queries may return limited results via web search — if so, try broader queries like `reddit "[city]" underrated neighborhood locals` without the site operator.
+```bash
+python reddit_search.py --query "[city] where do locals live neighborhood" --limit 15
+python reddit_search.py --query "[city] underrated neighborhoods" --subreddit [citysubreddit] --limit 15
+python reddit_search.py --query "[city] up and coming neighborhood" --limit 15
+python reddit_search.py --query "[city] gentrification neighborhood locals" --limit 15
+python reddit_search.py --query "[city] instead of [known neighborhood]" --limit 10
+```
+
+The last query is the **flight signal** — locals recommending X as an alternative to a more known neighbor is the strongest Category 1 indicator.
+
+Prioritize posts with `score` > 20 and `top_comments` that describe a neighborhood's atmosphere or clientele. `date` filtering (last 2 years) is handled automatically by the script.
 
 **Layer 2 — Time Out "Coolest Neighborhoods" annual list**
 This is the single most aligned cultural source for this profile. Time Out's methodology explicitly targets neighborhoods with community spirit, everyday vitality, and local character — not tourist centrality or luxury.
@@ -272,29 +276,41 @@ Present neighborhoods grouped by category (Category 1 first, then Category 2). F
 
 ## Search Strategy — Venues
 
-### Primary source: Reddit
-Reddit is the most reliable source because recommendations come from locals with no economic incentive. Always start here.
+### Primary source: Reddit API (via `reddit_search.py`)
+Reddit is the most reliable source because recommendations come from locals with no economic incentive. Use the script directly — do NOT fall back to web search for Reddit.
 
-**Run these searches for each confirmed neighborhood:**
-- `site:reddit.com "[neighborhood]" "[city]" bar locals`
-- `site:reddit.com "[neighborhood]" "[city]" coffee café`
-- `site:reddit.com "[neighborhood]" "[city]" restaurant "local favorite" OR "hidden gem"`
-- `site:reddit.com "[city]" "best bars" "[neighborhood]"`
-- `site:reddit.com "[city]" "where locals eat" OR "locals go"`
+**Script location:** `reddit_search.py` in the repo root. Requires `.env` with `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET`.
 
-**Also search relevant subreddits directly:**
-- r/[city] (e.g. r/nyc, r/chicago, r/paris)
-- r/[city]food or r/[city]bar if they exist
-- r/AskNYC equivalent for the city
-- Thematic: r/coffee, r/wine, r/barhopping for cross-references
+**Run these calls for each confirmed neighborhood:**
 
-**Reddit signal quality — prioritize:**
-- Comments with highest upvotes
-- Threads from the last 2 years
-- Comments that describe atmosphere, clientele, or vibe — not just a name
-- Ignore: "just go to X" with no context, heavily downvoted suggestions, obvious tourist traps mentioned ironically
+```bash
+# Bars
+python reddit_search.py --query "[neighborhood] [city] bar locals" --subreddit [citysubreddit] --limit 10
 
-### Secondary sources (if Reddit insufficient)
+# Cafés
+python reddit_search.py --query "[neighborhood] [city] coffee café" --subreddit [citysubreddit] --limit 10
+
+# Restaurants
+python reddit_search.py --query "[neighborhood] [city] restaurant local" --subreddit [citysubreddit] --limit 10
+
+# Cross-city (no subreddit restriction)
+python reddit_search.py --query "where locals eat [neighborhood] [city]" --limit 15
+
+# Flight signal (for neighborhood discovery)
+python reddit_search.py --query "[city] instead of [known neighborhood] locals" --limit 10
+```
+
+**Also target city-specific subreddits:**
+- `--subreddit [city]` (e.g. `paris`, `chicago`, `nyc`)
+- `--subreddit [city]food` or `--subreddit [city]bar` if they exist
+
+**Reading the JSON output — prioritize:**
+- Posts with `score` > 20 and `num_comments` > 10
+- `top_comments` that describe atmosphere, clientele, or vibe — not just a venue name
+- `date` within the last 2 years (already filtered by the script)
+- Ignore comments that are a bare venue name with no context
+
+### Secondary sources (if Reddit results < 5 relevant posts)
 - Independent local blogs, neighborhood guides
 - Eater [city], local food/culture press — filter out sponsored content
 - Time Out acceptable as last resort — ignore "top 10" lists, look for editorial pieces
@@ -305,9 +321,6 @@ Do NOT sort or prioritize venues by number of reviews. A venue with 200 authenti
 
 ### When results are insufficient
 Flag explicitly to the user: *"Reddit results for [neighborhood] in [city] are limited — do you have local knowledge or contacts who could supplement?"* Do not fill gaps with generic recommendations.
-
-### Future: Reddit API integration
-*(Placeholder — when API is connected, replace web search with direct subreddit calls using `sort=top` and `sort=new`, extract comments with score above threshold, remove web search fallback)*
 
 ---
 
