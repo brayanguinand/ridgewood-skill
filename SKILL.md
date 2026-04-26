@@ -107,20 +107,42 @@ Neighborhoods with extreme cultural diversity and very low gentrification (e.g. 
 
 ### Search sequence (run in this order)
 
-**Layer 1 — Reddit API (primary source)**
-Reddit is where locals recommend to locals — no economic incentive, no SEO. Use `reddit_search.py` directly.
+**Layer 1 — Reddit via MCP (primary source)**
+Reddit is where locals recommend to locals — no economic incentive, no SEO. Two complementary MCP tools are configured for this project:
 
-```bash
-python reddit_search.py --query "[city] where do locals live neighborhood" --limit 15
-python reddit_search.py --query "[city] underrated neighborhoods" --subreddit [citysubreddit] --limit 15
-python reddit_search.py --query "[city] up and coming neighborhood" --limit 15
-python reddit_search.py --query "[city] gentrification neighborhood locals" --limit 15
-python reddit_search.py --query "[city] instead of [known neighborhood]" --limit 10
+| MCP | Tools | Source | Rate limit | Role |
+|-----|-------|--------|------------|------|
+| `pullpush` | `search_submissions`, `search_comments` | PullPush archive (up to May 2025) | 15 req/min | Historical depth, older threads |
+| `reddit-buddy` | `search_reddit`, `get_post_details` | Reddit real-time | 10 req/min | Recent validation, 2024–2025 posts |
+
+**Calls for neighborhood discovery — start with PullPush for depth:**
+```
+pullpush/search_submissions: subreddit=[citysubreddit] q="[city] underrated neighborhoods locals"
+pullpush/search_submissions: subreddit=[citysubreddit] q="[city] up and coming neighborhood gentrification"
+pullpush/search_submissions: q="[city] instead of [known neighborhood]"
+pullpush/search_submissions: q="[city] where do locals live neighborhood"
 ```
 
-The last query is the **flight signal** — locals recommending X as an alternative to a more known neighbor is the strongest Category 1 indicator.
+Then validate with reddit-buddy for recent signals:
+```
+reddit-buddy/search_reddit: query="[city] neighborhood hidden gem locals" subreddit=[citysubreddit]
+reddit-buddy/search_reddit: query="[city] instead of [known neighborhood] 2024 2025"
+```
 
-Prioritize posts with `score` > 20 and `top_comments` that describe a neighborhood's atmosphere or clientele. `date` filtering (last 2 years) is handled automatically by the script.
+The last type of query is the **flight signal** — locals recommending X as an alternative to a more advanced neighbor. Strongest Category 1 indicator.
+
+**Subreddits to target (in order):**
+- `[citysubreddit]` (e.g. `sanfrancisco`, `chicago`, `paris`, `nyc`)
+- `[city]food` or `[city]eats` if they exist (e.g. `FoodNYC`, `chicagofood`)
+- City-specific ask subreddits (e.g. `AskNYC`, `AskSF`)
+
+**Note on PullPush scores:** PullPush archives scores at post creation — all scores show as 1, this number is useless. Use `num_comments` as the engagement proxy: prioritize posts with `num_comments` > 10.
+
+**Reading results — prioritize:**
+- Posts with `num_comments` > 10 (PullPush) or high score (reddit-buddy)
+- Comments describing atmosphere, clientele, vibe — not just a venue name
+- Recent posts (reddit-buddy) to confirm signals are still current
+- Ignore comments that are a bare venue name with no context
 
 **Layer 2 — Time Out "Coolest Neighborhoods" annual list** → `web_search`
 This is the single most aligned cultural source for this profile. Time Out's methodology explicitly targets neighborhoods with community spirit, everyday vitality, and local character — not tourist centrality or luxury.
@@ -288,9 +310,9 @@ Two tools, two roles. Never swap them.
 
 ---
 
-### Phase 1 — DISCOVERY via Reddit API (`reddit_search.py`)
+### Phase 1 — DISCOVERY via Reddit MCP
 
-Reddit is where locals recommend to locals — no economic incentive, no SEO. Use the script for all discovery. Do NOT use web search for this phase.
+Reddit is where locals recommend to locals — no economic incentive, no SEO. Use MCP tools for all discovery. Do NOT use web search for this phase.
 
 **What Reddit answers:**
 - Which neighborhoods match the profile
@@ -298,39 +320,50 @@ Reddit is where locals recommend to locals — no economic incentive, no SEO. Us
 - Why a venue is liked (vibe, clientele, atmosphere)
 - The "flight signal" — locals recommending X as an alternative to a more known neighbor
 
-**Script location:** `reddit_search.py` in the repo root. Requires `.env` with `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET`.
+**MCP tools available:**
 
-**Calls for neighborhood discovery:**
-```bash
-python reddit_search.py --query "[city] underrated neighborhoods locals" --subreddit [citysubreddit] --limit 15
-python reddit_search.py --query "[city] instead of [known neighborhood]" --limit 10
-python reddit_search.py --query "[city] up and coming neighborhood gentrification" --limit 15
-```
+| MCP | Tool | Source | Rate limit | Role |
+|-----|------|--------|------------|------|
+| `pullpush` | `search_submissions`, `search_comments` | PullPush archive (up to May 2025) | 15 req/min | Historical depth, older threads |
+| `reddit-buddy` | `search_reddit`, `get_post_details` | Reddit real-time | 10 req/min | Recent posts, 2024–2025 validation |
 
 **Calls for venue discovery (per confirmed neighborhood):**
-```bash
+
+```
 # Bars
-python reddit_search.py --query "[neighborhood] [city] bar locals" --subreddit [citysubreddit] --limit 10
+pullpush/search_submissions: subreddit=[citysubreddit] q="[neighborhood] bar locals" limit=15
+reddit-buddy/search_reddit: query="[neighborhood] [city] bar locals" subreddit=[citysubreddit]
 
 # Cafés
-python reddit_search.py --query "[neighborhood] [city] coffee café" --subreddit [citysubreddit] --limit 10
+pullpush/search_submissions: subreddit=[citysubreddit] q="[neighborhood] coffee café" limit=15
+reddit-buddy/search_reddit: query="[neighborhood] [city] coffee café" subreddit=[citysubreddit]
 
 # Restaurants
-python reddit_search.py --query "[neighborhood] [city] restaurant local" --subreddit [citysubreddit] --limit 10
+pullpush/search_submissions: subreddit=[citysubreddit] q="[neighborhood] restaurant local" limit=15
+reddit-buddy/search_reddit: query="[neighborhood] [city] restaurant local" subreddit=[citysubreddit]
 
 # Broader cross-city
-python reddit_search.py --query "where locals eat [neighborhood] [city]" --limit 15
+pullpush/search_submissions: q="where locals eat [neighborhood] [city]" limit=15
+reddit-buddy/search_reddit: query="where locals eat [neighborhood] [city]"
 ```
 
-**Also target city-specific subreddits:**
-- `--subreddit [city]` (e.g. `paris`, `chicago`, `nyc`)
-- `--subreddit [city]food` or `--subreddit [city]bar` if they exist
+**Also target city-specific food/bar subreddits:**
+- primary: `[city]` (e.g. `sanfrancisco`, `chicago`, `nyc`)
+- secondary: `[city]food`, `[city]bar`, `food[city]` if they exist
+- tertiary: `AskSF`, `AskNYC`, `AskChicago` pattern — these threads carry dense local venue mentions
 
-**Reading the JSON output — prioritize:**
-- Posts with `score` > 20 and `num_comments` > 10
-- `top_comments` that describe atmosphere, clientele, or vibe — not just a venue name
-- `date` within the last 2 years (already filtered by the script)
-- Ignore comments that are a bare venue name with no context
+**Getting full thread content:**
+After finding a relevant post via `search_submissions` or `search_reddit`, retrieve its comments:
+```
+pullpush/search_comments: link_id=[post_id] limit=50
+reddit-buddy/get_post_details: post_id=[post_id]
+```
+
+**Reading results — prioritize:**
+- `num_comments` > 10 (PullPush archives all scores as 1 — use comment count as engagement proxy)
+- Comments that describe atmosphere, clientele, or vibe — not just a bare venue name
+- Posts dated within the last 3 years
+- Ignore comments that are a venue name with no context
 
 ---
 
@@ -361,10 +394,36 @@ web_fetch: Google Maps page or official website if found
 ### Review volume — important rule
 Do NOT sort or prioritize venues by number of reviews. A venue with 200 authentic local reviews may outrank one with 2,000 tourist reviews. Volume is not a quality signal for this profile.
 
-### When Reddit results are insufficient
+### When Reddit MCP results are insufficient
 Flag explicitly to the user: *"Reddit results for [neighborhood] in [city] are limited — do you have local knowledge or contacts who could supplement?"* Do not fill gaps with generic recommendations.
 
-### Fallback sources (if Reddit results < 5 relevant posts)
+### Fallback — web_search (when both MCPs are unavailable)
+
+**Structural limitation:** Reddit deliberately blocks Google indexing (post-June 2023). `site:reddit.com` is not supported by web_search, and reddit.com cannot be fetched. This means web_search is **structurally insufficient for Cat 1** (emerging, underdocumented neighborhoods) — the flight signal simply doesn't surface this way.
+
+**What web_search can do:**
+- Cat 2 validation: established cool neighborhoods have editorial coverage (Eater, local press, food blogs)
+- Venue validation: address, hours, whether it still exists
+- Supplement sparse MCP results with non-Reddit editorial sources
+
+**Queries that work for Cat 2:**
+```
+web_search: "best [category] [neighborhood] [city]"
+web_search: "local [category] [neighborhood] [city] guide"
+web_search: "[city] [neighborhood] underrated [category] 2024"
+web_fetch: Eater [city] neighborhood guide, local food blog articles
+```
+
+**What doesn't work (do not attempt):**
+- `site:reddit.com` — operator not supported
+- Fetching reddit.com or old.reddit.com — blocked
+- Fetching Redlib/Libreddit frontends — dead or bot-protected
+- Searching "best X [city] reddit" and expecting actual Reddit thread content — Google returns aggregator pages, not Reddit posts
+
+**If MCP is unavailable and web_search is insufficient for Cat 1:**
+Tell the user explicitly: *"Je ne peux pas accéder à Reddit en ce moment. Les résultats pour les quartiers émergents (Cat 1) seront limités — les sources web couvrent mieux les quartiers déjà établis."*
+
+### Fallback editorial sources (if Reddit results < 5 relevant posts)
 - Independent local blogs, neighborhood guides
 - Eater [city], local food/culture press — filter out sponsored content
 - Time Out acceptable as last resort — ignore "top 10" lists, look for editorial pieces
