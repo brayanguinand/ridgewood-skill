@@ -236,7 +236,12 @@ Within Category 1, rank by strength of emergence signals — Reddit flight signa
 2. Lower East Side (Manhattan) — historic immigrant identity partially intact, dive bar culture, gentrification advanced but heterogeneous pockets survive on side streets off Orchard/Ludlow.
 
 ### Output of Step 1
-Present neighborhoods grouped by category (Category 1 first, then Category 2). For each Category 2 neighborhood, always include internal zone mapping. Confirm with user before proceeding to Step 2.
+Present neighborhoods grouped by category (Category 1 first, then Category 2). For each Category 2 neighborhood, always include internal zone mapping.
+
+**MANDATORY STOP — do not proceed to Step 2 automatically.** After presenting the neighborhood list, always ask:
+> "Sur quels quartiers veux-tu que je lance la recherche de venues (Step 2) ?"
+
+Wait for explicit user confirmation and a list of neighborhoods before starting any venue search. Never self-initiate Step 2.
 
 ---
 
