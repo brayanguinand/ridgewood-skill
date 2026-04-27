@@ -107,63 +107,47 @@ Neighborhoods with extreme cultural diversity and very low gentrification (e.g. 
 
 ### Search sequence (run in this order)
 
-**Layer 1 — Reddit via MCP (primary source)**
-Reddit is where locals recommend to locals — no economic incentive, no SEO. Two complementary MCP tools are configured for this project:
+**Layer 1 — web_search (primary discovery)**
+Start with editorial sources — fast, efficient, and sufficient to build a candidate list. Broad Reddit subreddits (AskNYC, AskSF, FoodNYC, etc.) are explicitly excluded from this layer: too noisy, dominated by news/politics/lifestyle posts, and returned near-zero useful signal in practice.
+
+```
+# Core discovery — run all three in parallel
+web_search: "Time Out coolest neighborhoods world [current year] [city]"
+web_search: "[city] neighborhoods to watch [year] StreetEasy"
+web_search: "[city] up and coming neighborhood [year]"
+```
+
+- Time Out is the most aligned cultural source: methodology explicitly targets community spirit, everyday vitality, local character
+- Neighborhoods that appeared 2–4 years ago in Time Out are often at peak emergence now
+- StreetEasy search trends are a reliable Cat 1 proxy (search interest = flight demand, not yet price inflation)
+- Google sometimes surfaces real Reddit threads in results — fetch them via `web_fetch` if accessible
+
+**Layer 2 — Reddit MCP (targeted validation, not discovery)**
+Once Layer 1 has produced a candidate list, use Reddit MCP on the specific neighborhood subreddit to validate each candidate and detect the flight signal. **Do not use broad city subreddits (Ask[City], [City]food) — they produced no useful neighborhood signal in testing.**
+
+Two complementary MCP tools:
 
 | MCP | Tools | Source | Rate limit | Role |
 |-----|-------|--------|------------|------|
 | `pullpush` | `search_submissions`, `search_comments` | PullPush archive (up to May 2025) | 15 req/min | Historical depth, older threads |
 | `reddit-buddy` | `search_reddit`, `get_post_details` | Reddit real-time | 10 req/min | Recent validation, 2024–2025 posts |
 
-**Subreddit priority — avoid main city subreddits (r/nyc, r/paris, r/chicago): too noisy, full of news/politics.**
-1. `Ask[City]` (e.g. `AskNYC`, `AskSF`) — neighborhood/moving threads with dense local commentary
-2. `[City]food` / `Food[City]` (e.g. `FoodNYC`, `chicagofood`) — implicit neighborhood signals in food discussions
-3. `r/[neighborhood]` directly, once candidates are identified (e.g. `Ridgewood`, `Bushwick`, `InnerRichmond`)
-
-**Calls for neighborhood discovery:**
 ```
-# Step 1 — Find neighborhood advice threads on Ask[City]
-pullpush/search_submissions: subreddit=Ask[City] q="neighborhood move recommend" limit=15
-pullpush/search_submissions: subreddit=Ask[City] q="where to live [city]" limit=15
-
-# Step 2 — See which neighborhoods surface in the food subreddit
-pullpush/search_submissions: subreddit=[city]food q="neighborhood" limit=15
-
-# Step 3 — Confirm candidates directly on their subreddit
-pullpush/search_submissions: subreddit=[neighborhood] limit=20
+# Validate each candidate on its own subreddit
+pullpush/search_submissions: subreddit=[neighborhood] limit=20 sort_type=num_comments
+reddit-buddy/search_reddit: query="neighborhood vibe locals" subreddit=[neighborhood]
 ```
+
+**Note on PullPush scores:** All scores are archived as 1 — useless. Use `num_comments` as engagement proxy. **Skip posts with 0 comments entirely.**
 
 **Reading for the flight signal:**
-The flight signal does NOT appear as a literal phrase. It surfaces *in the comments* of neighborhood advice threads. Fetch all threads with `num_comments` > 10 and read comments for patterns like: "check X, it's like the old Y", "X is what Y used to be 5 years ago".
+The flight signal does NOT appear as a literal phrase. It surfaces *in the comments* of neighborhood advice threads. Fetch high-comment threads and read for patterns like: "check X, it's like the old Y", "X is what Y used to be 5 years ago".
 ```
 pullpush/search_comments: link_id=[post_id] limit=50
 reddit-buddy/get_post_details: post_id=[post_id]
 ```
 
-**If PullPush is too noisy for neighborhood discovery:** move to Layer 2 (web_search bridge), then return to PullPush to confirm the candidates on their specific subreddits.
-
-**Note on PullPush scores:** All scores are archived as 1 — useless. Use `num_comments` as engagement proxy. **Skip posts with 0 comments entirely.**
-
-**Layer 2 — web_search bridge (when Layer 1 is too noisy)**
-Use when PullPush returns insufficient signal on neighborhood discovery. Combines editorial sources AND Reddit queries via Google — sometimes real Reddit threads surface in results and can be fetched.
-
-```
-# Reddit via web_search (Google sometimes surfaces Reddit threads — fetch them if accessible)
-web_search: "[city] neighborhood locals reddit"
-web_search: "[city] up and coming neighborhood reddit 2024"
-web_fetch: any Reddit thread URL that appears in results → read comments
-
-# Editorial — most reliable for Cat 2, partial for Cat 1
-web_search: "Time Out coolest neighborhoods world [current year] [city]"
-web_search: "[city] neighborhoods to watch [year] StreetEasy"
-web_search: "[city] up and coming neighborhood [year]"
-```
-
-Use results to build a candidate list, then return to Layer 1 PullPush to confirm each candidate on `r/[neighborhood]` and `r/[city]food`.
-
-- Time Out is the most aligned cultural source: methodology explicitly targets community spirit, everyday vitality, local character
-- Neighborhoods that appeared 2–4 years ago in Time Out are often at peak emergence now
-- StreetEasy search trends are a reliable Cat 1 proxy (search interest = flight demand, not yet price inflation)
+**When to skip Layers 1 and 2 entirely:** If the user has already specified the neighborhood (e.g. "find venues in Bernal Heights"), skip neighborhood identification entirely and go directly to **Step 2 — Venue Search**.
 
 **Layer 3 — Hyper-local neighborhood press** → `web_search` + `web_fetch`
 The existence of a neighborhood-specific publication is itself a strong signal of community identity. These outlets cover a neighborhood *from the inside* with no tourist audience.
