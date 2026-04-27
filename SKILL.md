@@ -115,43 +115,55 @@ Reddit is where locals recommend to locals — no economic incentive, no SEO. Tw
 | `pullpush` | `search_submissions`, `search_comments` | PullPush archive (up to May 2025) | 15 req/min | Historical depth, older threads |
 | `reddit-buddy` | `search_reddit`, `get_post_details` | Reddit real-time | 10 req/min | Recent validation, 2024–2025 posts |
 
-**Calls for neighborhood discovery — start with PullPush for depth:**
+**Subreddit priority — avoid main city subreddits (r/nyc, r/paris, r/chicago): too noisy, full of news/politics.**
+1. `Ask[City]` (e.g. `AskNYC`, `AskSF`) — neighborhood/moving threads with dense local commentary
+2. `[City]food` / `Food[City]` (e.g. `FoodNYC`, `chicagofood`) — implicit neighborhood signals in food discussions
+3. `r/[neighborhood]` directly, once candidates are identified (e.g. `Ridgewood`, `Bushwick`, `InnerRichmond`)
+
+**Calls for neighborhood discovery:**
 ```
-pullpush/search_submissions: subreddit=[citysubreddit] q="[city] underrated neighborhoods locals"
-pullpush/search_submissions: subreddit=[citysubreddit] q="[city] up and coming neighborhood gentrification"
-pullpush/search_submissions: q="[city] instead of [known neighborhood]"
-pullpush/search_submissions: q="[city] where do locals live neighborhood"
+# Step 1 — Find neighborhood advice threads on Ask[City]
+pullpush/search_submissions: subreddit=Ask[City] q="neighborhood move recommend" limit=15
+pullpush/search_submissions: subreddit=Ask[City] q="where to live [city]" limit=15
+
+# Step 2 — See which neighborhoods surface in the food subreddit
+pullpush/search_submissions: subreddit=[city]food q="neighborhood" limit=15
+
+# Step 3 — Confirm candidates directly on their subreddit
+pullpush/search_submissions: subreddit=[neighborhood] limit=20
 ```
 
-Then validate with reddit-buddy for recent signals:
+**Reading for the flight signal:**
+The flight signal does NOT appear as a literal phrase. It surfaces *in the comments* of neighborhood advice threads. Fetch all threads with `num_comments` > 10 and read comments for patterns like: "check X, it's like the old Y", "X is what Y used to be 5 years ago".
 ```
-reddit-buddy/search_reddit: query="[city] neighborhood hidden gem locals" subreddit=[citysubreddit]
-reddit-buddy/search_reddit: query="[city] instead of [known neighborhood] 2024 2025"
+pullpush/search_comments: link_id=[post_id] limit=50
+reddit-buddy/get_post_details: post_id=[post_id]
 ```
 
-The last type of query is the **flight signal** — locals recommending X as an alternative to a more advanced neighbor. Strongest Category 1 indicator.
+**If PullPush is too noisy for neighborhood discovery:** move to Layer 2 (web_search bridge), then return to PullPush to confirm the candidates on their specific subreddits.
 
-**Subreddits to target (in order):**
-- `[citysubreddit]` (e.g. `sanfrancisco`, `chicago`, `paris`, `nyc`)
-- `[city]food` or `[city]eats` if they exist (e.g. `FoodNYC`, `chicagofood`)
-- City-specific ask subreddits (e.g. `AskNYC`, `AskSF`)
+**Note on PullPush scores:** All scores are archived as 1 — useless. Use `num_comments` as engagement proxy. **Skip posts with 0 comments entirely.**
 
-**Note on PullPush scores:** PullPush archives scores at post creation — all scores show as 1, this number is useless. Use `num_comments` as the engagement proxy: prioritize posts with `num_comments` > 10.
+**Layer 2 — web_search bridge (when Layer 1 is too noisy)**
+Use when PullPush returns insufficient signal on neighborhood discovery. Combines editorial sources AND Reddit queries via Google — sometimes real Reddit threads surface in results and can be fetched.
 
-**Reading results — prioritize:**
-- Posts with `num_comments` > 10 (PullPush) or high score (reddit-buddy)
-- Comments describing atmosphere, clientele, vibe — not just a venue name
-- Recent posts (reddit-buddy) to confirm signals are still current
-- Ignore comments that are a bare venue name with no context
-
-**Layer 2 — Time Out "Coolest Neighborhoods" annual list** → `web_search`
-This is the single most aligned cultural source for this profile. Time Out's methodology explicitly targets neighborhoods with community spirit, everyday vitality, and local character — not tourist centrality or luxury.
 ```
+# Reddit via web_search (Google sometimes surfaces Reddit threads — fetch them if accessible)
+web_search: "[city] neighborhood locals reddit"
+web_search: "[city] up and coming neighborhood reddit 2024"
+web_fetch: any Reddit thread URL that appears in results → read comments
+
+# Editorial — most reliable for Cat 2, partial for Cat 1
 web_search: "Time Out coolest neighborhoods world [current year] [city]"
-web_search: "Time Out coolest neighborhoods [city] 2024"
+web_search: "[city] neighborhoods to watch [year] StreetEasy"
+web_search: "[city] up and coming neighborhood [year]"
 ```
-- Neighborhoods that appeared 2–4 years ago are often at peak emergence now
-- Note: Time Out Brooklyn neighborhoods to watch (Flatbush 2024, Fort Greene 2023, Red Hook 2025) follow a pattern of authentic emerging areas year over year
+
+Use results to build a candidate list, then return to Layer 1 PullPush to confirm each candidate on `r/[neighborhood]` and `r/[city]food`.
+
+- Time Out is the most aligned cultural source: methodology explicitly targets community spirit, everyday vitality, local character
+- Neighborhoods that appeared 2–4 years ago in Time Out are often at peak emergence now
+- StreetEasy search trends are a reliable Cat 1 proxy (search interest = flight demand, not yet price inflation)
 
 **Layer 3 — Hyper-local neighborhood press** → `web_search` + `web_fetch`
 The existence of a neighborhood-specific publication is itself a strong signal of community identity. These outlets cover a neighborhood *from the inside* with no tourist audience.
@@ -312,58 +324,49 @@ Two tools, two roles. Never swap them.
 
 ### Phase 1 — DISCOVERY via Reddit MCP
 
-Reddit is where locals recommend to locals — no economic incentive, no SEO. Use MCP tools for all discovery. Do NOT use web search for this phase.
+Reddit is where locals recommend to locals — no economic incentive, no SEO. Neighborhood confirmed → search venues per category on the neighborhood's own subreddit first.
 
-**What Reddit answers:**
-- Which neighborhoods match the profile
-- Which specific venues are mentioned by locals
-- Why a venue is liked (vibe, clientele, atmosphere)
-- The "flight signal" — locals recommending X as an alternative to a more known neighbor
-
-**MCP tools available:**
+**MCP tools:**
 
 | MCP | Tool | Source | Rate limit | Role |
 |-----|------|--------|------------|------|
 | `pullpush` | `search_submissions`, `search_comments` | PullPush archive (up to May 2025) | 15 req/min | Historical depth, older threads |
 | `reddit-buddy` | `search_reddit`, `get_post_details` | Reddit real-time | 10 req/min | Recent posts, 2024–2025 validation |
 
-**Calls for venue discovery (per confirmed neighborhood):**
+**Subreddit priority for venue discovery:**
+1. `r/[neighborhood]` (e.g. `r/Ridgewood`, `r/Bushwick`, `r/InnerRichmond`) — strongest local signal
+2. `r/[City]food` / `r/Food[City]` (e.g. `r/FoodNYC`) with neighborhood name
+3. `r/Ask[City]` — venue threads surface occasionally
+
+**Search each category separately** — combining terms reduces results:
 
 ```
 # Bars
-pullpush/search_submissions: subreddit=[citysubreddit] q="[neighborhood] bar locals" limit=15
-reddit-buddy/search_reddit: query="[neighborhood] [city] bar locals" subreddit=[citysubreddit]
+pullpush/search_submissions: subreddit=[neighborhood] q="bar" limit=20
+pullpush/search_submissions: subreddit=[city]food q="[neighborhood] bar" limit=15
+reddit-buddy/search_reddit: query="[neighborhood] bar" subreddit=[neighborhood]
 
 # Cafés
-pullpush/search_submissions: subreddit=[citysubreddit] q="[neighborhood] coffee café" limit=15
-reddit-buddy/search_reddit: query="[neighborhood] [city] coffee café" subreddit=[citysubreddit]
+pullpush/search_submissions: subreddit=[neighborhood] q="coffee" limit=20
+pullpush/search_submissions: subreddit=[city]food q="[neighborhood] coffee café" limit=15
 
 # Restaurants
-pullpush/search_submissions: subreddit=[citysubreddit] q="[neighborhood] restaurant local" limit=15
-reddit-buddy/search_reddit: query="[neighborhood] [city] restaurant local" subreddit=[citysubreddit]
-
-# Broader cross-city
-pullpush/search_submissions: q="where locals eat [neighborhood] [city]" limit=15
-reddit-buddy/search_reddit: query="where locals eat [neighborhood] [city]"
+pullpush/search_submissions: subreddit=[neighborhood] q="restaurant" limit=20
+pullpush/search_submissions: subreddit=[city]food q="[neighborhood] restaurant" limit=15
+reddit-buddy/search_reddit: query="[neighborhood] restaurant" subreddit=[neighborhood]
 ```
 
-**Also target city-specific food/bar subreddits:**
-- primary: `[city]` (e.g. `sanfrancisco`, `chicago`, `nyc`)
-- secondary: `[city]food`, `[city]bar`, `food[city]` if they exist
-- tertiary: `AskSF`, `AskNYC`, `AskChicago` pattern — these threads carry dense local venue mentions
-
 **Getting full thread content:**
-After finding a relevant post via `search_submissions` or `search_reddit`, retrieve its comments:
 ```
 pullpush/search_comments: link_id=[post_id] limit=50
 reddit-buddy/get_post_details: post_id=[post_id]
 ```
 
 **Reading results — prioritize:**
-- `num_comments` > 10 (PullPush archives all scores as 1 — use comment count as engagement proxy)
-- Comments that describe atmosphere, clientele, or vibe — not just a bare venue name
+- **Skip posts with 0 comments entirely**
+- Comments describing atmosphere, clientele, or vibe — not just a bare venue name
 - Posts dated within the last 3 years
-- Ignore comments that are a venue name with no context
+- reddit-buddy for anything post-May 2025
 
 ---
 
