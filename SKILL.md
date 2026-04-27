@@ -78,9 +78,11 @@ Neighborhoods where gentrification is actively in progress. Legacy businesses st
 ---
 
 ### Category 2 — Established Cool
-Neighborhoods where gentrification is advanced but heterogeneity is preserved — either in the whole neighborhood or in specific streets/zones. These neighborhoods are known to locals and culturally documented, but not tourist traps. They have a stable identity with enough diversity to remain interesting.
+Neighborhoods that are fully gentrified and emerged — already on the radar as cool, mainstream among culturally-aware locals — but not chic, not luxury, not exclusive. They have a stable identity with preserved heterogeneity, either across the whole neighborhood or in specific corridors.
 
 **Key signals:**
+- Already established as "cool" or "hip" in editorial sources — present in "best/coolest neighborhoods [city]" guides, not "emerging" or "to watch" lists
+- Described with language like: hip, eclectic, artsy, indie, creative, vibrant — never luxury, exclusive, or high-end
 - Longtime creative residents feel nostalgia for "what it used to be" — but the neighborhood still works
 - Reddit describes it as "still good if you avoid X" or "X street is the real neighborhood"
 - Heterogeneity survives in secondary streets, specific corridors, or legacy pockets
@@ -110,16 +112,30 @@ Neighborhoods with extreme cultural diversity and very low gentrification (e.g. 
 **Layer 1 — web_search (primary discovery)**
 Start with editorial sources — fast, efficient, and sufficient to build a candidate list. Broad Reddit subreddits (AskNYC, AskSF, FoodNYC, etc.) are explicitly excluded from this layer: too noisy, dominated by news/politics/lifestyle posts, and returned near-zero useful signal in practice.
 
+**Cat 1 and Cat 2 require different query intent — run both tracks in parallel.**
+
 ```
-# Core discovery — run all three in parallel
+# Cat 1 discovery — emerging neighborhoods
 web_search: "Time Out coolest neighborhoods world [current year] [city]"
 web_search: "[city] neighborhoods to watch [year] StreetEasy"
 web_search: "[city] up and coming neighborhood [year]"
 ```
 
-- Time Out is the most aligned cultural source: methodology explicitly targets community spirit, everyday vitality, local character
+- Time Out global ranking targets community spirit, everyday vitality, local character — most aligned source for Cat 1
 - Neighborhoods that appeared 2–4 years ago in Time Out are often at peak emergence now
 - StreetEasy search trends are a reliable Cat 1 proxy (search interest = flight demand, not yet price inflation)
+- Cat 2 neighborhoods are past their emergence phase and will never appear in these results
+
+```
+# Cat 2 discovery — established cool neighborhoods
+web_search: "[city] coolest neighborhoods locals guide [year]"
+web_fetch: Time Out [city] neighborhoods guide  (full guide, not the global ranking)
+web_fetch: Infatuation [city] neighborhood guide
+```
+
+- Cat 2 neighborhoods appear in "best/coolest neighborhoods [city]" guides — not in "emerging" or "to watch" lists
+- Editorial fingerprint: described as hip, cool, eclectic, artsy, indie, creative — never luxury, exclusive, or high-end
+- This language cluster is the key signal: same words used for Williamsburg ("made Brooklyn cool", "hip", "eclectic culinary destination") and LES ("artsy", "laid-back and irreverent", "alternative bars") but never for excluded neighborhoods (SoHo = luxury boutiques, Meatpacking = exclusive)
 - Google sometimes surfaces real Reddit threads in results — fetch them via `web_fetch` if accessible
 
 **Layer 2 — Reddit MCP (targeted validation, not discovery)**
