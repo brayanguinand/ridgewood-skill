@@ -139,7 +139,13 @@ web_fetch: Infatuation [city] neighborhood guide
 - Google sometimes surfaces real Reddit threads in results — fetch them via `web_fetch` if accessible
 
 **Layer 2 — Reddit MCP (targeted validation, not discovery)**
-Once Layer 1 has produced a candidate list, use Reddit MCP on the specific neighborhood subreddit to validate each candidate and detect the flight signal. **Do not use broad city subreddits (Ask[City], [City]food) — they produced no useful neighborhood signal in testing.**
+Once Layer 1 has produced a candidate list, use Reddit MCP on the specific neighborhood subreddit to validate each candidate and detect the flight signal.
+
+**Excluded subreddits — zero useful neighborhood signal in testing:**
+- City-level: `r/nyc`, `r/paris`, `r/chicago`, `Ask[City]`, `[City]food`
+- Borough-level: `r/Brooklyn`, `r/Queens`, `r/Manhattan`, `r/TheBronx`, `r/StatenIsland` — same problem as city subreddits, too broad, dominated by news/complaints/events
+
+**Only use `r/[neighborhood]` directly** (e.g. `r/ridgewood`, `r/CrownHeights`, `r/BernalHeights`).
 
 Two complementary MCP tools:
 
